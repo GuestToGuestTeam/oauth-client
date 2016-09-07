@@ -1,0 +1,56 @@
+{
+  "root": true,
+  "extends": "google",
+  "plugins": [
+    "import"
+  ],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es6": true,
+    "mocha": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 6,
+    "sourceType": "module"
+  },
+  "ecmaFeatures": {
+    "arrowFunctions": true,
+    "binaryLiterals": true,
+    "blockBindings": true,
+    "classes": true,
+    "defaultParams": true,
+    "destructuring": true,
+    "forOf": true,
+    "generators": true,
+    "modules": true,
+    "objectLiteralComputedProperties": true,
+    "objectLiteralDuplicateProperties": true,
+    "objectLiteralShorthandMethods": true,
+    "objectLiteralShorthandProperties": true,
+    "octalLiterals": true,
+    "regexUFlag": true,
+    "regexYFlag": true,
+    "spread": true,
+    "superInFunctions": true,
+    "templateStrings": true,
+    "unicodeCodePointEscapes": true,
+    "globalReturn": true,
+    "jsx": true
+  },
+  "rules": {
+    # Best Practices
+    "no-warning-comments": [0, { "terms": ["todo", "fixme", "xxx"], "location": "start" }],
+    "no-unused-expressions": [2, { allowShortCircuit: false, allowTernary: false }],
+    # Strict Mode
+    "strict": 0,
+    # Stylistic Issues
+    "camelcase": 0,
+    "max-len": [2, 100, 2, { ignoreUrls: true, ignoreComments: false }],
+    "max-nested-callbacks": 0,
+    "padded-blocks": [1, { "classes": "always", "switches": "never" }],
+    "space-before-function-paren": ['error', { anonymous: 'always', named: 'never' }],
+    # ECMAScript 6
+    "no-var": 2,
+  }
+}
