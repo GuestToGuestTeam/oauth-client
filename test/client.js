@@ -175,6 +175,14 @@ describe('OauthClient', function () {
       expect(fn).to.throw(Error);
     });
 
+    it('should throw an error if callig refreshToken without refresh_token provided', function () {
+      client.token.refresh_token = null;
+      const fn = function () {
+        client.refreshToken();
+      };
+      expect(fn).to.throw(Error);
+    });
+
     it('should send refresh token query', function () {
       sinon.spy(client, 'sendRequest');
 

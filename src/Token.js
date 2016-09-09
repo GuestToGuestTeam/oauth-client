@@ -24,17 +24,16 @@ export default class Token {
     }
     this.access_token = token.access_token;
 
-    if (typeof token.refresh_token !== 'string') {
-      throw new Error('"refresh_token" property is required and must be a string');
-    }
-    this.refresh_token = token.refresh_token;
-
     if (typeof token.expires_in === 'number') {
       token.expires = Token.getExpiresDateForDuration(token.expires_in);
     }
 
     if (typeof token.expires === 'number' || token.expires instanceof Date) {
       this.expires = token.expires instanceof Date ? token.expires : new Date(token.expires);
+    }
+
+    if (token.refresh_token) {
+      this.refresh_token = token.refresh_token;
     }
 
     if (token.scope) {

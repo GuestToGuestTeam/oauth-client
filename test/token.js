@@ -42,40 +42,17 @@ describe('Token', function () {
       expect(fn).to.throw(Error);
     });
 
-    it('should throw an error if no "refresh_token" provided', function () {
+    it('should not throw an error required property provided', function () {
       const fn = function () {
         return new Token({
           token_type: 'bearer',
           access_token: 'foo'
         });
       };
-      expect(fn).to.throw(Error);
-    });
-
-    it('should not throw an error if no "expires" provided', function () {
-      const fn = function () {
-        return new Token({
-          token_type: 'bearer',
-          access_token: 'foo',
-          refresh_token: 'bar'
-        });
-      };
       expect(fn).to.not.throw(Error);
     });
 
-    it('should set required property if valid', function () {
-      const token = new Token({
-        token_type: 'bearer',
-        access_token: 'foo',
-        refresh_token: 'bar',
-        expires: 123456789
-      });
-      expect(token).to.have.property('token_type', 'bearer');
-      expect(token).to.have.property('access_token', 'foo');
-      expect(token).to.have.property('refresh_token', 'bar');
-    });
-
-    it('should convert expires time to Date object', function () {
+    it('should convert "expires" time to Date object', function () {
       const fn = function () {
         return new Token({
           token_type: 'bearer',
@@ -89,7 +66,17 @@ describe('Token', function () {
       expect(fn().expires.getTime()).to.be.equal(123456789);
     });
 
-    it('should set scope property', function () {
+    it('should set "refresh_token" property if defined', function () {
+      const token = new Token({
+        token_type: 'bearer',
+        access_token: 'foo',
+        refresh_token: 'bar',
+        expires: 123456789
+      });
+      expect(token).to.have.property('refresh_token', 'bar');
+    });
+
+    it('should set "scope" property if defined', function () {
       const token = new Token({
         token_type: 'bearer',
         access_token: 'foo',

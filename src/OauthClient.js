@@ -45,6 +45,9 @@ export default class OauthClient {
     if (!this.token) {
       throw new Error('Must request an access_token before.');
     }
+    if (!this.token.refresh_token) {
+      throw new Error('Must provide a "refresh_token" to be abble to refresh token.');
+    }
     const body = {
       grant_type: 'refresh_token',
       refresh_token: this.token.refresh_token
@@ -84,8 +87,8 @@ export default class OauthClient {
 
   request(path, options) {
     if (this.token && this.token.access_token) {
-      // access_token should be expired, refresh it before execute request
-      if (this.token.isAccessTokenExpired()) {
+      // if access_token expired and refresh_token is defined, refresh it before execute request
+      if (this.token.isAccessTokenExpired() && this.token.refresh_token) {
         return this.refreshToken()
           .then(response => {
             return this.request(path, options);
