@@ -4,6 +4,7 @@ import {expect} from 'chai';
 import sinon from 'sinon';
 import nock from 'nock';
 import OauthClient from '../src/OauthClient.js';
+import Token from '../src/Token.js';
 
 describe('OauthClient', function () {
 
@@ -89,59 +90,6 @@ describe('OauthClient', function () {
 
   });
 
-  describe('#getExpiresDateForDuration()', function () {
-
-    it('should return expires date for a given time duration', function () {
-      const client = new OauthClient({
-        client_id: 'foo',
-        client_secret: 'bar',
-        host: 'http://localhost'
-      });
-      const now = new Date();
-      const expires = client.getExpiresDateForDuration(3600);
-      expect(expires.getTime()).to.closeTo(now.getTime() + 3600 * 1000, 1000);
-    });
-
-  });
-
-  describe('#isAccessTokenExpired()', function () {
-
-    let client;
-
-    beforeEach(function () {
-      client = new OauthClient({
-        client_id: 'foo',
-        client_secret: 'bar',
-        host: 'http://localhost'
-      });
-      client.token_type = 'bearer';
-      client.access_token = 'foo';
-      client.refresh_token = 'bar';
-      const now = new Date();
-      const expires = new Date(now.getTime() + 3600);
-      client.expires = expires;
-    });
-
-    it('should return false if access_token expires date is not outdated', function () {
-      client.expires = null;
-      expect(client.isAccessTokenExpired()).to.be.false;
-    });
-
-    it('should return false if access_token expires date is not outdated', function () {
-      expect(client.isAccessTokenExpired()).to.be.false;
-    });
-
-    it('should return true if access_token expires date is outdated', function () {
-      const clock = sinon.useFakeTimers(new Date().getTime());
-      clock.tick(3600);
-
-      expect(client.isAccessTokenExpired()).to.be.true;
-
-      clock.restore();
-    });
-
-  });
-
   describe('#requestToken()', function () {
 
     let client;
@@ -175,11 +123,11 @@ describe('OauthClient', function () {
     it('should handle request token response', function (done) {
       client.requestToken('john@mail.com', '123456')
         .then(function () {
-          expect(client.token_type).to.equal('bearer');
-          expect(client.access_token).to.equal('2YotnFZFEjr1zCsicMWpAA');
-          expect(client.refresh_token).to.equal('tGzv3JOkF0XG5Qx2TlKWIA');
-          const expires = client.getExpiresDateForDuration(3600);
-          expect(client.expires.getTime()).to.closeTo(expires.getTime(), 1000);
+          expect(client.token.token_type).to.equal('bearer');
+          expect(client.token.access_token).to.equal('2YotnFZFEjr1zCsicMWpAA');
+          expect(client.token.refresh_token).to.equal('tGzv3JOkF0XG5Qx2TlKWIA');
+          const expires = Token.getExpiresDateForDuration(3600);
+          expect(client.token.expires.getTime()).to.closeTo(expires.getTime(), 1000);
           done();
         })
         .catch(function (err) {
@@ -190,7 +138,10 @@ describe('OauthClient', function () {
     it('should call error handler if request token failed', function (done) {
       client.requestToken('john@mail.com', 'abcdef')
         .then(function (response) {
-          expect(response).to.have.property('error', 'invalid_client');
+          done(Error('should call error handler'));
+        })
+        .catch(function (err) {
+          expect(err).to.be.an('error');
           done();
         });
     });
@@ -208,6 +159,20 @@ describe('OauthClient', function () {
         host: 'http://localhost',
         scope: 'email'
       });
+      client.token = new Token({
+        token_type: 'bearer',
+        access_token: '52323ab0f95bdaf627dd8',
+        refresh_token: '4e8b0bd2031916e795ab7',
+        expires: Token.getExpiresDateForDuration(3600)
+      });
+    });
+
+    it('should throw an error if callig refresh token before access token', function () {
+      client.token = null;
+      const fn = function () {
+        client.refreshToken();
+      };
+      expect(fn).to.throw(Error);
     });
 
     it('should send refresh token query', function () {
@@ -217,7 +182,7 @@ describe('OauthClient', function () {
 
       expect(client.sendRequest.withArgs({
         grant_type: 'refresh_token',
-        refresh_token: client.refresh_token,
+        refresh_token: client.token.refresh_token,
         scope: 'email'
       }).calledOnce).to.be.true;
 
@@ -228,11 +193,11 @@ describe('OauthClient', function () {
     it('should handle refresh token response', function (done) {
       client.refreshToken()
         .then(function () {
-          expect(client.token_type).to.equal('bearer');
-          expect(client.access_token).to.equal('52323ab0f95bdaf627dd8');
-          expect(client.refresh_token).to.equal('4e8b0bd2031916e795ab7');
-          const expires = client.getExpiresDateForDuration(3600);
-          expect(client.expires.getTime()).to.closeTo(expires.getTime(), 1000);
+          expect(client.token.token_type).to.equal('bearer');
+          expect(client.token.access_token).to.equal('52323ab0f95bdaf627dd8');
+          expect(client.token.refresh_token).to.equal('4e8b0bd2031916e795ab7');
+          const expires = Token.getExpiresDateForDuration(3600);
+          expect(client.token.expires.getTime()).to.closeTo(expires.getTime(), 1000);
           done();
         })
         .catch(function (err) {
@@ -264,7 +229,7 @@ describe('OauthClient', function () {
         .persist()
         .get('/users/1')
         .reply(function (uri, requestBody) {
-          if (client.isAccessTokenExpired()) {
+          if (client.token.isAccessTokenExpired()) {
             return [401, 'Unauthorized'];
           }
           return [200, {
@@ -338,13 +303,13 @@ describe('OauthClient', function () {
 
           // fake time
           const now = new Date();
-          clock.tick(client.expires.getTime() - now.getTime());
+          clock.tick(client.token.expires.getTime() - now.getTime());
 
           client.request('/users/1')
             .then(function (response) {
               expect(client.refreshToken.calledOnce).to.be.true;
-              expect(client.access_token).to.not.equal(initialAccessToken);
-              expect(client.expires.getTime()).to.be.above((new Date()).getTime());
+              expect(client.token.access_token).to.not.equal(initialAccessToken);
+              expect(client.token.expires.getTime()).to.be.above((new Date()).getTime());
               expect(response.status).to.equal(200);
               done();
             })

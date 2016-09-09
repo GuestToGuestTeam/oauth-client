@@ -1,20 +1,30 @@
-// import request from 'superagent';
 import fetch from 'isomorphic-fetch';
+import Token from './Token';
 
 export default class OauthClient {
 
   constructor(options) {
     options = Object.assign({}, options);
+
     if (!options.client_id) {
       throw new Error('"client_id" option must be defined.');
     }
+
     if (!options.client_secret) {
       throw new Error('"client_secret" option must be defined.');
     }
+
     this.client_id = options.client_id;
     this.client_secret = options.client_secret;
     this.host = options.host ? options.host.replace(/\/$/, '') : '';
     this.scope = options.scope;
+
+    // retrieve previous token informations from cookie if exists
+    try {
+      this.token = new Token();
+    } catch (err) {
+      // no token cookie found
+    }
   }
 
   requestToken(username, password) {
@@ -32,9 +42,12 @@ export default class OauthClient {
   }
 
   refreshToken() {
+    if (!this.token) {
+      throw new Error('Must request an access_token before.');
+    }
     const body = {
       grant_type: 'refresh_token',
-      refresh_token: this.refresh_token
+      refresh_token: this.token.refresh_token
     };
     if (this.scope) {
       body.scope = this.scope;
@@ -52,41 +65,27 @@ export default class OauthClient {
       body: JSON.stringify(body)
     })
       .then(function (response) {
+        if (!response.ok) {
+          // TODO handle error status : https://tools.ietf.org/html/rfc6749#section-5.2
+          throw new Error(response.statusText);
+        }
+        return response;
+      })
+      .then(function (response) {
         return response.json();
       })
       .then(this.handleAccessTokenReponse.bind(this));
   }
 
   handleAccessTokenReponse(response) {
-    // TODO handle error status : https://tools.ietf.org/html/rfc6749#section-5.2
-    this.token_type = response.token_type;
-    this.access_token = response.access_token;
-    this.refresh_token = response.refresh_token;
-    if (response.expires_in) {
-      this.expires = this.getExpiresDateForDuration(response.expires_in);
-    }
+    this.token = new Token(response);
     return response;
   }
 
-  getExpiresDateForDuration(duration) {
-    // return current date time + duration converted to milliseconds
-    const now = new Date();
-    return new Date(now.getTime() + duration * 1000);
-  }
-
-  isAccessTokenExpired() {
-    // access_token is expired if current expires date is <= to current time
-    if (this.expires && this.expires instanceof Date) {
-      const now = new Date();
-      return now.getTime() >= this.expires.getTime();
-    }
-    return false;
-  }
-
   request(path, options) {
-    if (this.access_token) {
+    if (this.token && this.token.access_token) {
       // access_token should be expired, refresh it before execute request
-      if (this.isAccessTokenExpired()) {
+      if (this.token.isAccessTokenExpired()) {
         return this.refreshToken()
           .then(response => {
             return this.request(path, options);
@@ -95,7 +94,7 @@ export default class OauthClient {
       // add Authorization header with access_token Bearer value
       options = Object.assign({}, options, {
         headers: {
-          Authorization: `${this.token_type} ${this.access_token}`
+          Authorization: `${this.token.token_type} ${this.token.access_token}`
         }
       });
     }
