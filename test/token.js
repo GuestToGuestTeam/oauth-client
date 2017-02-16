@@ -19,11 +19,31 @@ describe('Token', function () {
 
   describe('#constructor()', function () {
 
-    it('should throw an error if no informations provided', function () {
-      const fn = function () {
-        return new Token();
-      };
-      expect(fn).to.throw(Error);
+    it('should try to load token data from cookie if no informations provided', function () {
+      sinon.stub(Cookies, 'get', function (name) {
+        switch (name) {
+          case 'token_type':
+            return 'bearer';
+          case 'access_token':
+            return 'abcdef';
+          case 'refresh_token':
+            return 'ghijkl';
+          case 'expires':
+            return 123456789;
+          case 'scope':
+            return 'email';
+          default:
+            break;
+        }
+      });
+      const token = new Token();
+      expect(token).to.have.property('token_type', 'bearer');
+      expect(token).to.have.property('access_token', 'abcdef');
+      expect(token).to.have.property('refresh_token', 'ghijkl');
+      expect(token).to.have.property('expires');
+      expect(token.expires).to.be.instanceof(Date);
+      expect(token.expires.getTime()).to.equal((new Date(123456789)).getTime());
+      expect(token).to.have.property('scope', 'email');
     });
 
     it('should throw an error if no "token_type" provided', function () {
@@ -103,27 +123,6 @@ describe('Token', function () {
       expect(token.expires.getTime()).to.be.equal(expires.getTime());
     });
 
-    it('should retrive token from cookie if no arguments', function () {
-      sinon.stub(Cookies, 'get', function (name) {
-        if (name === Token.COOKIE_NAME) {
-          return {
-            token_type: 'bearer',
-            access_token: 'foo',
-            refresh_token: 'bar',
-            expires: 123456789
-          };
-        }
-      });
-
-      const token = new Token();
-      expect(token).to.have.property('token_type', 'bearer');
-      expect(token).to.have.property('access_token', 'foo');
-      expect(token).to.have.property('refresh_token', 'bar');
-      expect(token).to.have.property('expires');
-      expect(token.expires).to.be.an.instanceof(Date);
-      expect(token.expires.getTime()).to.equal(123456789);
-    });
-
   });
 
   describe('#isAccessTokenExpired()', function () {
@@ -175,16 +174,11 @@ describe('Token', function () {
 
       token.store();
 
-      expect(Cookies.set.calledWith(
-        Token.COOKIE_NAME,
-        {
-          token_type: 'bearer',
-          access_token: 'foo',
-          refresh_token: 'bar',
-          expires: expires.getTime(),
-          scope: 'email'
-        }
-      )).to.be.true;
+      expect(Cookies.set.calledWith('token_type', 'bearer')).to.be.true;
+      expect(Cookies.set.calledWith('access_token', 'foo')).to.be.true;
+      expect(Cookies.set.calledWith('refresh_token', 'bar')).to.be.true;
+      expect(Cookies.set.calledWith('expires', expires.getTime())).to.be.true;
+      expect(Cookies.set.calledWith('scope', 'email')).to.be.true;
 
       Cookies.set.restore();
     });
@@ -206,7 +200,11 @@ describe('Token', function () {
 
       token.clear();
 
-      expect(Cookies.remove.calledWith(Token.COOKIE_NAME)).to.be.true;
+      expect(Cookies.remove.calledWith('token_type')).to.be.true;
+      expect(Cookies.remove.calledWith('access_token')).to.be.true;
+      expect(Cookies.remove.calledWith('refresh_token')).to.be.true;
+      expect(Cookies.remove.calledWith('expires')).to.be.true;
+      expect(Cookies.remove.calledWith('scope')).to.be.true;
 
       Cookies.remove.restore();
     });

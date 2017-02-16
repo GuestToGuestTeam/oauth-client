@@ -2,16 +2,15 @@ import Cookies from 'js-cookie';
 
 export default class Token {
 
-  static get COOKIE_NAME() {
-    return 'token';
-  }
-
   constructor(token) {
     if (typeof token !== 'object') {
-      token = Cookies.get(Token.COOKIE_NAME);
-      if (!token) {
-        throw new Error('No token informations provided or cookie found');
-      }
+      token = {
+        token_type: Cookies.get('token_type'),
+        access_token: Cookies.get('access_token'),
+        refresh_token: Cookies.get('refresh_token'),
+        expires: Cookies.get('expires'),
+        scope: Cookies.get('scope')
+      };
     }
 
     if (typeof token.token_type !== 'string') {
@@ -39,6 +38,8 @@ export default class Token {
     if (token.scope) {
       this.scope = token.scope;
     }
+
+    this.store();
   }
 
   static getExpiresDateForDuration(duration) {
@@ -58,17 +59,19 @@ export default class Token {
 
   store() {
     // store token informations in cookie
-    Cookies.set(Token.COOKIE_NAME, {
-      token_type: this.token_type,
-      access_token: this.access_token,
-      refresh_token: this.refresh_token,
-      expires: this.expires.getTime(),
-      scope: this.scope
-    });
+    Cookies.set('token_type', this.token_type);
+    Cookies.set('access_token', this.access_token);
+    Cookies.set('refresh_token', this.refresh_token);
+    Cookies.set('expires', this.expires instanceof Date ? this.expires.getTime() : this.expires);
+    Cookies.set('scope', this.scope);
   }
 
   clear() {
-    Cookies.remove(Token.COOKIE_NAME);
+    Cookies.remove('token_type');
+    Cookies.remove('access_token');
+    Cookies.remove('refresh_token');
+    Cookies.remove('expires');
+    Cookies.remove('scope');
   }
 
 }
